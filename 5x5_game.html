@@ -6,30 +6,30 @@
 <title>Gerrymandering Grid (5x5)</title>
 <style>
   body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding: 20px;
-  }
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+    }
   .controls {
-    margin-bottom: 15px;
-  }
+    margin-bottom: 15px;
+    }
   .grid {
-    display: grid;
-    /* UPDATED: 5 columns */
-    grid-template-columns: repeat(5, 60px);
-    /* UPDATED: 5 rows */
-    grid-template-rows: repeat(5, 60px);
-    gap: 2px;
-    justify-content: center;
-    margin: 0 auto;
-  }
+    display: grid;
+    /* UPDATED: 5 columns */
+    grid-template-columns: repeat(5, 60px);
+    /* UPDATED: 5 rows */
+    grid-template-rows: repeat(5, 60px);
+    gap: 2px;
+    justify-content: center;
+    margin: 0 auto;
+}
   .cell {
-    width: 60px;
-    height: 60px;
-    border: 1px solid #aaa;
-    cursor: pointer;
-    transition: 0.2s;
-  }
+    width: 60px;
+    height: 60px;
+    border: 1px solid #aaa;
+    cursor: pointer;
+    transition: 0.2s;
+    }
   .blue { background-color: #3b82f6; } /* Tailwind blue-500 */
   .red { background-color: #ef4444; }  /* Tailwind red-500 */
 
@@ -39,9 +39,9 @@
   .subgrid-3 { outline: 5px solid yellow; }
 
   #message, #winner {
-    margin-top: 15px;
-    font-weight: bold;
-  }
+    margin-top: 15px;
+    font-weight: bold;
+    }
   #message { color: red; }
   #winner { color: #111; }
 </style>
