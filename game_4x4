@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gerrymandering Grid (5x5)</title>
+<title>Gerrymandering Grid</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -15,28 +15,51 @@
   }
   .grid {
     display: grid;
-    /* UPDATED: 5 columns */
-    grid-template-columns: repeat(5, 60px);
-    /* UPDATED: 5 rows */
-    grid-template-rows: repeat(5, 60px);
-    gap: 2px;
+    grid-template-columns: repeat(4, 60px);
+    grid-template-rows: repeat(4, 60px);
+    /* Remove gap, borders will handle separation */
     justify-content: center;
     margin: 0 auto;
   }
   .cell {
     width: 60px;
     height: 60px;
-    border: 1px solid #aaa;
+    /* Base border for all cells - serves as the white gap */
+    border: 3px solid white; 
+    box-sizing: border-box; /* Crucial for border to be inclusive of width/height */
     cursor: pointer;
     transition: 0.2s;
+    /* Set up default/reset borders */
+    border-color: white;
   }
   .blue { background-color: #3b82f6; } /* Tailwind blue-500 */
   .red { background-color: #ef4444; }  /* Tailwind red-500 */
 
-  /* Different subgrid outlines */
-  .subgrid-1 { outline: 5px solid black; }
-  .subgrid-2 { outline: 5px solid green; }
-  .subgrid-3 { outline: 5px solid yellow; }
+  /* Define district border colors */
+  .subgrid-1-border { border-color: black !important; }
+  .subgrid-2-border { border-color: green !important; }
+  .subgrid-3-border { border-color: yellow !important; }
+
+  /* Specific border assignments for shared boundaries */
+  .cell[data-subgrid='1'] { border-color: white; }
+  .cell[data-subgrid='2'] { border-color: white; }
+  .cell[data-subgrid='3'] { border-color: white; }
+
+  .subgrid-1-top { border-top-color: black !important; }
+  .subgrid-1-right { border-right-color: black !important; }
+  .subgrid-1-bottom { border-bottom-color: black !important; }
+  .subgrid-1-left { border-left-color: black !important; }
+
+  .subgrid-2-top { border-top-color: green !important; }
+  .subgrid-2-right { border-right-color: green !important; }
+  .subgrid-2-bottom { border-bottom-color: green !important; }
+  .subgrid-2-left { border-left-color: green !important; }
+
+  .subgrid-3-top { border-top-color: yellow !important; }
+  .subgrid-3-right { border-right-color: yellow !important; }
+  .subgrid-3-bottom { border-bottom-color: yellow !important; }
+  .subgrid-3-left { border-left-color: yellow !important; }
+
 
   #message, #winner {
     margin-top: 15px;
@@ -47,11 +70,11 @@
 </style>
 </head>
 <body>
-  <h1>Gerrymandering Interactive Grid (5x5)</h1>
-  <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous and should ideally have 8 or 9 tiles (25 tiles / 3 subgrids = $\approx$ 8.33).</p>
+  <h1>Gerrymandering Interactive Grid</h1>
+  <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
 
   <div class="controls">
- <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
+    <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
     <label><input type="radio" name="subgrid" value="2"> Subgrid 2</label>
     <label><input type="radio" name="subgrid" value="3"> Subgrid 3</label>
   </div>
@@ -62,54 +85,94 @@
 
 <script>
 const grid = document.getElementById('grid');
-/* UPDATED: 5x5 Coordinates */
-const rows = ['A', 'B', 'C', 'D', 'E'];
-const cols = ['1', '2', '3', '4', '5'];
-/* UPDATED: 13 Blue, 12 Red votes (Blue has slight majority) */
-const blueTiles = new Set([
-  'A1', 'A3', 'A5', 
-  'B2', 'B4', 
-  'C1', 'C3', 'C5', 
-  'D2', 'D4', 
-  'E1', 'E3', 'E5' 
-]);
+const rows = ['A', 'B', 'C', 'D'];
+const cols = ['1', '2', '3', '4'];
+const blueTiles = new Set(['A1', 'A3', 'B4', 'D1', 'D2', 'D3']);
 let selectedSubgrid = '1';
+const gridSize = 4; // 4x4 grid
+
+// Array to hold cell elements in a 2D structure for easier neighbor lookup
+const cellMatrix = [];
 
 // Build grid
-rows.forEach(r => {
-  cols.forEach(c => {
-    const id = r + c;
+for (let r = 0; r < gridSize; r++) {
+  const row = rows[r];
+  cellMatrix[r] = [];
+  for (let c = 0; c < gridSize; c++) {
+    const col = cols[c];
+    const id = row + col;
     const cell = document.createElement('div');
     cell.classList.add('cell', blueTiles.has(id) ? 'blue' : 'red');
     cell.dataset.id = id;
-    cell.dataset.row = r;
-    cell.dataset.col = c;
+    cell.dataset.row = row;
+    cell.dataset.col = col;
     cell.dataset.subgrid = '';
+    cell.dataset.ridx = r; // Row index
+    cell.dataset.cidx = c; // Column index
     grid.appendChild(cell);
-  });
-});
+    cellMatrix[r][c] = cell;
+  }
+}
 
 // Handle subgrid selection
 document.querySelectorAll('input[name="subgrid"]').forEach(input => {
   input.addEventListener('change', e => selectedSubgrid = e.target.value);
 });
 
+// Helper to remove all border classes from a cell
+function resetCellBorders(cell) {
+  cell.classList.remove(
+    'subgrid-1-top', 'subgrid-1-right', 'subgrid-1-bottom', 'subgrid-1-left',
+    'subgrid-2-top', 'subgrid-2-right', 'subgrid-2-bottom', 'subgrid-2-left',
+    'subgrid-3-top', 'subgrid-3-right', 'subgrid-3-bottom', 'subgrid-3-left'
+  );
+}
+
+// Function to apply district borders based on neighbors
+function applyBorders() {
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const cell = cellMatrix[r][c];
+      resetCellBorders(cell); // Clear existing borders
+      const subgrid = cell.dataset.subgrid;
+
+      if (subgrid === '') continue; // Skip unassigned tiles
+
+      const borders = {
+        top: r > 0 ? cellMatrix[r - 1][c].dataset.subgrid : null,
+        right: c < gridSize - 1 ? cellMatrix[r][c + 1].dataset.subgrid : null,
+        bottom: r < gridSize - 1 ? cellMatrix[r + 1][c].dataset.subgrid : null,
+        left: c > 0 ? cellMatrix[r][c - 1].dataset.subgrid : null
+      };
+
+      // Check against boundaries (null means outside the grid)
+      if (borders.top !== subgrid) cell.classList.add(`subgrid-${subgrid}-top`);
+      if (borders.right !== subgrid) cell.classList.add(`subgrid-${subgrid}-right`);
+      if (borders.bottom !== subgrid) cell.classList.add(`subgrid-${subgrid}-bottom`);
+      if (borders.left !== subgrid) cell.classList.add(`subgrid-${subgrid}-left`);
+    }
+  }
+}
+
 // Handle cell clicks
 grid.addEventListener('click', e => {
   if (!e.target.classList.contains('cell')) return;
   const cell = e.target;
   const prev = cell.dataset.subgrid;
+
+  // Clear old border class before changing subgrid assignment
+  resetCellBorders(cell);
+
   if (prev === selectedSubgrid) {
     // Unassign
     cell.dataset.subgrid = '';
-    cell.classList.remove(`subgrid-${selectedSubgrid}`);
   } else {
     // Assign
     cell.dataset.subgrid = selectedSubgrid;
-    cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-    cell.classList.add(`subgrid-${selectedSubgrid}`);
   }
+  
   validateSubgrids();
+  applyBorders(); // Apply borders after assignment and validation
 });
 
 // Helper to check connectivity and compute results
@@ -120,14 +183,14 @@ function validateSubgrids() {
   message.textContent = '';
   winnerMsg.textContent = '';
 
-  // Connectivity validation
+  // Connectivity validation (original logic remains the same)
   for (let subgridNum of ['1', '2', '3']) {
     const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
     if (assigned.length <= 1) continue; // single or none = valid
 
     const coords = assigned.map(c => {
-      const r = rows.indexOf(c.dataset.row);
-      const cidx = cols.indexOf(c.dataset.col);
+      const r = parseInt(c.dataset.ridx);
+      const cidx = parseInt(c.dataset.cidx);
       return [r, cidx];
     });
 
@@ -140,8 +203,7 @@ function validateSubgrids() {
       [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr, dc]) => {
         const nr = r + dr, nc = c + dc;
         const key = nr + ',' + nc;
-        // UPDATED: Check for 5x5 bounds
-        if (nr < 0 || nr >= 5 || nc < 0 || nc >= 5) return;
+        if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) return;
         if (!visited.has(key) && coords.some(([rr, cc]) => rr === nr && cc === nc)) {
           visited.add(key);
           queue.push(key);
@@ -158,7 +220,7 @@ function validateSubgrids() {
 
   message.textContent = '✅ All subgrids valid.';
   
-  // Compute subgrid winners
+  // Compute subgrid winners (original logic remains the same)
   const subgridResults = {1: null, 2: null, 3: null};
   for (let subgridNum of ['1', '2', '3']) {
     const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
@@ -172,21 +234,24 @@ function validateSubgrids() {
     else subgridResults[subgridNum] = 'tie';
   }
 
-  // Count overall wins
+  // Count overall wins (original logic remains the same)
   const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
   const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
 
   if (blueWins >= 2) {
-    winnerMsg.textContent = '🏆 Blue wins overall! (Blue has 13/25 total votes)';
+    winnerMsg.textContent = '🏆 Blue wins overall!';
     winnerMsg.style.color = '#2563eb';
   } else if (redWins >= 2) {
-    winnerMsg.textContent = '🏆 Red wins overall! (Blue has 13/25 total votes)';
+    winnerMsg.textContent = '🏆 Red wins overall!';
     winnerMsg.style.color = '#dc2626';
   } else {
-    winnerMsg.textContent = '🤝 It\'s a tie overall! (Blue has 13/25 total votes)';
+    winnerMsg.textContent = '🤝 It\'s a tie overall!';
     winnerMsg.style.color = '#111';
   }
 }
+
+// Initial border application
+applyBorders(); 
 </script>
 </body>
 </html>
