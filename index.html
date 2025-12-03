@@ -3,178 +3,189 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gerrymandering Grid</title>
+<title>Gerrymandering Grid (5x5)</title>
 <style>
-  body {
+  body {
     font-family: Arial, sans-serif;
     text-align: center;
     padding: 20px;
-  }
-  .controls {
+    }
+  .controls {
     margin-bottom: 15px;
-  }
-  .grid {
+    }
+  .grid {
     display: grid;
-    grid-template-columns: repeat(4, 60px);
-    grid-template-rows: repeat(4, 60px);
+    /* UPDATED: 5 columns */
+    grid-template-columns: repeat(5, 60px);
+    /* UPDATED: 5 rows */
+    grid-template-rows: repeat(5, 60px);
     gap: 2px;
     justify-content: center;
     margin: 0 auto;
-  }
-  .cell {
+}
+  .cell {
     width: 60px;
     height: 60px;
     border: 1px solid #aaa;
     cursor: pointer;
     transition: 0.2s;
-  }
-  .blue { background-color: #3b82f6; } /* Tailwind blue-500 */
-  .red { background-color: #ef4444; }  /* Tailwind red-500 */
+    }
+  .blue { background-color: #3b82f6; } /* Tailwind blue-500 */
+  .red { background-color: #ef4444; }  /* Tailwind red-500 */
 
-  /* Different subgrid outlines */
-  .subgrid-1 { outline: 5px solid black; }
-  .subgrid-2 { outline: 5px solid green; }
-  .subgrid-3 { outline: 5px solid yellow; }
+  /* Different subgrid outlines */
+  .subgrid-1 { outline: 5px solid black; }
+  .subgrid-2 { outline: 5px solid green; }
+  .subgrid-3 { outline: 5px solid yellow; }
 
-  #message, #winner {
+  #message, #winner {
     margin-top: 15px;
     font-weight: bold;
-  }
-  #message { color: red; }
-  #winner { color: #111; }
+    }
+  #message { color: red; }
+  #winner { color: #111; }
 </style>
 </head>
 <body>
-  <h1>Gerrymandering Interactive Grid</h1>
-  <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
+  <h1>Gerrymandering Interactive Grid (5x5)</h1>
+  <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous and should ideally have 8 or 9 tiles (25 tiles / 3 subgrids = $\approx$ 8.33).</p>
 
-  <div class="controls">
-    <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
-    <label><input type="radio" name="subgrid" value="2"> Subgrid 2</label>
-    <label><input type="radio" name="subgrid" value="3"> Subgrid 3</label>
-  </div>
+  <div class="controls">
+ <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
+    <label><input type="radio" name="subgrid" value="2"> Subgrid 2</label>
+    <label><input type="radio" name="subgrid" value="3"> Subgrid 3</label>
+  </div>
 
-  <div class="grid" id="grid"></div>
-  <div id="message"></div>
-  <div id="winner"></div>
+  <div class="grid" id="grid"></div>
+  <div id="message"></div>
+  <div id="winner"></div>
 
 <script>
 const grid = document.getElementById('grid');
-const rows = ['A', 'B', 'C', 'D'];
-const cols = ['1', '2', '3', '4'];
-const blueTiles = new Set(['A1', 'A3', 'B4', 'D1', 'D2', 'D3']);
+/* UPDATED: 5x5 Coordinates */
+const rows = ['A', 'B', 'C', 'D', 'E'];
+const cols = ['1', '2', '3', '4', '5'];
+/* UPDATED: 13 Blue, 12 Red votes (Blue has slight majority) */
+const blueTiles = new Set([
+  'A1', 'A3', 'A5', 
+  'B2', 'B4', 
+  'C1', 'C3', 'C5', 
+  'D2', 'D4', 
+  'E1', 'E3', 'E5' 
+]);
 let selectedSubgrid = '1';
 
 // Build grid
 rows.forEach(r => {
-  cols.forEach(c => {
-    const id = r + c;
-    const cell = document.createElement('div');
-    cell.classList.add('cell', blueTiles.has(id) ? 'blue' : 'red');
-    cell.dataset.id = id;
-    cell.dataset.row = r;
-    cell.dataset.col = c;
-    cell.dataset.subgrid = '';
-    grid.appendChild(cell);
-  });
+  cols.forEach(c => {
+    const id = r + c;
+    const cell = document.createElement('div');
+    cell.classList.add('cell', blueTiles.has(id) ? 'blue' : 'red');
+    cell.dataset.id = id;
+    cell.dataset.row = r;
+    cell.dataset.col = c;
+    cell.dataset.subgrid = '';
+    grid.appendChild(cell);
+  });
 });
 
 // Handle subgrid selection
 document.querySelectorAll('input[name="subgrid"]').forEach(input => {
-  input.addEventListener('change', e => selectedSubgrid = e.target.value);
+  input.addEventListener('change', e => selectedSubgrid = e.target.value);
 });
 
 // Handle cell clicks
 grid.addEventListener('click', e => {
-  if (!e.target.classList.contains('cell')) return;
-  const cell = e.target;
-  const prev = cell.dataset.subgrid;
-  if (prev === selectedSubgrid) {
-    // Unassign
-    cell.dataset.subgrid = '';
-    cell.classList.remove(`subgrid-${selectedSubgrid}`);
-  } else {
-    // Assign
-    cell.dataset.subgrid = selectedSubgrid;
-    cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-    cell.classList.add(`subgrid-${selectedSubgrid}`);
-  }
-  validateSubgrids();
+  if (!e.target.classList.contains('cell')) return;
+  const cell = e.target;
+  const prev = cell.dataset.subgrid;
+  if (prev === selectedSubgrid) {
+    // Unassign
+    cell.dataset.subgrid = '';
+    cell.classList.remove(`subgrid-${selectedSubgrid}`);
+  } else {
+    // Assign
+    cell.dataset.subgrid = selectedSubgrid;
+    cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
+    cell.classList.add(`subgrid-${selectedSubgrid}`);
+  }
+  validateSubgrids();
 });
 
 // Helper to check connectivity and compute results
 function validateSubgrids() {
-  const cells = [...document.querySelectorAll('.cell')];
-  const message = document.getElementById('message');
-  const winnerMsg = document.getElementById('winner');
-  message.textContent = '';
-  winnerMsg.textContent = '';
+  const cells = [...document.querySelectorAll('.cell')];
+  const message = document.getElementById('message');
+  const winnerMsg = document.getElementById('winner');
+  message.textContent = '';
+  winnerMsg.textContent = '';
 
-  // Connectivity validation
-  for (let subgridNum of ['1', '2', '3']) {
-    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
-    if (assigned.length <= 1) continue; // single or none = valid
+  // Connectivity validation
+  for (let subgridNum of ['1', '2', '3']) {
+    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+    if (assigned.length <= 1) continue; // single or none = valid
 
-    const coords = assigned.map(c => {
-      const r = rows.indexOf(c.dataset.row);
-      const cidx = cols.indexOf(c.dataset.col);
-      return [r, cidx];
-    });
+    const coords = assigned.map(c => {
+      const r = rows.indexOf(c.dataset.row);
+      const cidx = cols.indexOf(c.dataset.col);
+      return [r, cidx];
+    });
 
-    const visited = new Set();
-    const queue = [coords[0].join(',')];
-    visited.add(coords[0].join(','));
+    const visited = new Set();
+    const queue = [coords[0].join(',')];
+    visited.add(coords[0].join(','));
 
-    while (queue.length) {
-      const [r, c] = queue.shift().split(',').map(Number);
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr, dc]) => {
-        const nr = r + dr, nc = c + dc;
-        const key = nr + ',' + nc;
-        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) return;
-        if (!visited.has(key) && coords.some(([rr, cc]) => rr === nr && cc === nc)) {
-          visited.add(key);
-          queue.push(key);
-        }
-      });
-    }
+    while (queue.length) {
+      const [r, c] = queue.shift().split(',').map(Number);
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr, dc]) => {
+        const nr = r + dr, nc = c + dc;
+        const key = nr + ',' + nc;
+        // UPDATED: Check for 5x5 bounds
+        if (nr < 0 || nr >= 5 || nc < 0 || nc >= 5) return;
+        if (!visited.has(key) && coords.some(([rr, cc]) => rr === nr && cc === nc)) {
+          visited.add(key);
+          queue.push(key);
+        }
+      });
+    }
 
-    if (visited.size !== coords.length) {
-      message.textContent = `❌ Invalid subgrid ${subgridNum}: tiles must be connected!`;
-      winnerMsg.textContent = '';
-      return;
-    }
-  }
+    if (visited.size !== coords.length) {
+      message.textContent = `❌ Invalid subgrid ${subgridNum}: tiles must be connected!`;
+      winnerMsg.textContent = '';
+      return;
+    }
+  }
 
-  message.textContent = '✅ All subgrids valid.';
-  
-  // Compute subgrid winners
-  const subgridResults = {1: null, 2: null, 3: null};
-  for (let subgridNum of ['1', '2', '3']) {
-    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
-    if (assigned.length === 0) continue;
+  message.textContent = '✅ All subgrids valid.';
+  
+  // Compute subgrid winners
+  const subgridResults = {1: null, 2: null, 3: null};
+  for (let subgridNum of ['1', '2', '3']) {
+    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+    if (assigned.length === 0) continue;
 
-    const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
-    const redCount = assigned.length - blueCount;
+    const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
+    const redCount = assigned.length - blueCount;
 
-    if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
-    else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
-    else subgridResults[subgridNum] = 'tie';
-  }
+    if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
+    else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
+    else subgridResults[subgridNum] = 'tie';
+  }
 
-  // Count overall wins
-  const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
-  const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
+  // Count overall wins
+  const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
+  const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
 
-  if (blueWins >= 2) {
-    winnerMsg.textContent = '🏆 Blue wins overall!';
-    winnerMsg.style.color = '#2563eb';
-  } else if (redWins >= 2) {
-    winnerMsg.textContent = '🏆 Red wins overall!';
-    winnerMsg.style.color = '#dc2626';
-  } else {
-    winnerMsg.textContent = '🤝 It\'s a tie overall!';
-    winnerMsg.style.color = '#111';
-  }
+  if (blueWins >= 2) {
+    winnerMsg.textContent = '🏆 Blue wins overall! (Blue has 13/25 total votes)';
+    winnerMsg.style.color = '#2563eb';
+  } else if (redWins >= 2) {
+    winnerMsg.textContent = '🏆 Red wins overall! (Blue has 13/25 total votes)';
+    winnerMsg.style.color = '#dc2626';
+  } else {
+    winnerMsg.textContent = '🤝 It\'s a tie overall! (Blue has 13/25 total votes)';
+    winnerMsg.style.color = '#111';
+  }
 }
 </script>
 </body>
