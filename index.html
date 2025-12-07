@@ -133,14 +133,22 @@
       const cell = e.target;
       const prev = cell.dataset.subgrid;
 
+      // If this tile already belongs to another district, ignore the click
+      if (prev && prev !== selectedSubgrid) {
+        return;
+      }
+
+      // Toggle membership for the currently selected district
       if (prev === selectedSubgrid) {
+        // remove from this district
         cell.dataset.subgrid = '';
         cell.classList.remove(`subgrid-${selectedSubgrid}`);
       } else {
+        // assign to this district (was unassigned)
         cell.dataset.subgrid = selectedSubgrid;
-        cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
         cell.classList.add(`subgrid-${selectedSubgrid}`);
       }
+
       validateSubgrids();
     });
 
@@ -192,13 +200,13 @@
         }
 
         if (visited.size !== coords.length) {
-          message.textContent = `❌ Invalid subgrid ${subgridNum}: tiles must be connected!`;
+          message.textContent = `❌ Invalid district ${subgridNum}: tiles must be connected!`;
           winnerMsg.textContent = '';
           return;
         }
       }
 
-      message.textContent = '✅ All subgrids valid.';
+      message.textContent = '✅ All districts valid.';
 
       // Compute subgrid winners
       const subgridResults = {1: null, 2: null, 3: null};
