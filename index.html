@@ -44,155 +44,186 @@
 </style>
 </head>
 <body>
-  <h1>Gerrymandering Interactive Grid</h1>
-  <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
-  <p>Try to make both sides win once, play with the subgrids !</p>
-  <button id="resetBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px;">
-    Reset Game
-  </button>
+  <!-- Instructions screen -->
+  <div id="intro" style="max-width: 700px; margin: 0 auto 20px; text-align: left;">
+    <h1>Instructions for PS activity</h1>
+    <p>You are McDonald Chumb, an ambitious and sharp strategist working for
+       Barage Obana, a presidential candidate in a closely contested election.
+       Your job: redraw the district map before the next vote.</p>
 
-  <div class="controls">
-    <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
-    <label><input type="radio" name="subgrid" value="2"> Subgrid 2</label>
-    <label><input type="radio" name="subgrid" value="3"> Subgrid 3</label>
+    <p>On the screen, you’ll see a grid of voters, shown in two colors. Each
+       color represents a group of supporters. Your task is to divide the 
+       territory into a fixed number of districts. In each district, the
+       majority color wins the seat.</p>
+
+    <ul>
+      <li><strong>Round 1 – Fair map:</strong> draw districts so that the seats
+          honestly reflect the overall distribution of voters.</li>
+      <li><strong>Round 2 – Biased map:</strong> redraw the districts to help
+          your side win as many seats as possible.</li>
+    </ul>
+
+    <button id="startBtn">Start round 1</button>
   </div>
 
-  <div class="grid" id="grid"></div>
-  <div id="message"></div>
-  <div id="winner"></div>
+  <!-- Game screen -->
+  <div id="game" style="display:none;">
+    <h1>Gerrymandering Interactive Grid</h1>
+    <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
+    <p>Try to make both sides win once, play with the subgrids !</p>
+    <button id="resetBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px;">
+      Reset Game
+    </button>
 
-<script>
-const grid = document.getElementById('grid');
-const rows = ['A', 'B', 'C', 'D', 'E'];
-const cols = ['1', '2', '3', '4', '5'];
+    <div class="controls">
+      <label><input type="radio" name="subgrid" value="1" checked> Subgrid 1</label>
+      <label><input type="radio" name="subgrid" value="2"> Subgrid 2</label>
+      <label><input type="radio" name="subgrid" value="3"> Subgrid 3</label>
+    </div>
 
-// Keep the same blue tiles unless you want different ones in 5×5
-const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
+    <div class="grid" id="grid"></div>
+    <div id="message"></div>
+    <div id="winner"></div>
+  </div>
 
-let selectedSubgrid = '1';
+  <script>
+    const grid = document.getElementById('grid');
+    const rows = ['A', 'B', 'C', 'D', 'E'];
+    const cols = ['1', '2', '3', '4', '5'];
 
-// Build grid
-rows.forEach(r => {
-  cols.forEach(c => {
-    const id = r + c;
-    const cell = document.createElement('div');
-    cell.classList.add('cell', blueTiles.has(id) ? 'blue' : 'red');
-    cell.dataset.id = id;
-    cell.dataset.row = r;
-    cell.dataset.col = c;
-    cell.dataset.subgrid = '';
-    grid.appendChild(cell);
-  });
-});
+    // Keep the same blue tiles unless you want different ones in 5×5
+    const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
 
-// Handle subgrid selection
-document.querySelectorAll('input[name="subgrid"]').forEach(input => {
-  input.addEventListener('change', e => selectedSubgrid = e.target.value);
-});
+    let selectedSubgrid = '1';
 
-// Handle cell clicks
-grid.addEventListener('click', e => {
-  if (!e.target.classList.contains('cell')) return;
-  const cell = e.target;
-  const prev = cell.dataset.subgrid;
-
-  if (prev === selectedSubgrid) {
-    cell.dataset.subgrid = '';
-    cell.classList.remove(`subgrid-${selectedSubgrid}`);
-  } else {
-    cell.dataset.subgrid = selectedSubgrid;
-    cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-    cell.classList.add(`subgrid-${selectedSubgrid}`);
-  }
-  validateSubgrids();
-});
-
-// Validate connectivity + determine winners
-function validateSubgrids() {
-  const cells = [...document.querySelectorAll('.cell')];
-  const message = document.getElementById('message');
-  const winnerMsg = document.getElementById('winner');
-  message.textContent = '';
-  winnerMsg.textContent = '';
-
-  for (let subgridNum of ['1', '2', '3']) {
-    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
-    if (assigned.length <= 1) continue;
-
-    const coords = assigned.map(c => {
-      return [
-        rows.indexOf(c.dataset.row),
-        cols.indexOf(c.dataset.col)
-      ];
+    // Build grid
+    rows.forEach(r => {
+      cols.forEach(c => {
+        const id = r + c;
+        const cell = document.createElement('div');
+        cell.classList.add('cell', blueTiles.has(id) ? 'blue' : 'red');
+        cell.dataset.id = id;
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        cell.dataset.subgrid = '';
+        grid.appendChild(cell);
+      });
     });
 
-    const visited = new Set();
-    const queue = [coords[0].join(',')];
-    visited.add(coords[0].join(','));
+    // Handle subgrid selection
+    document.querySelectorAll('input[name="subgrid"]').forEach(input => {
+      input.addEventListener('change', e => selectedSubgrid = e.target.value);
+    });
 
-    while (queue.length) {
-      const [r, c] = queue.shift().split(',').map(Number);
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr, dc]) => {
-        const nr = r + dr, nc = c + dc;
-        const key = nr + ',' + nc;
-        if (nr < 0 || nr >= 5 || nc < 0 || nc >= 5) return;
-        if (!visited.has(key) && coords.some(([rr, cc]) => rr === nr && cc === nc)) {
-          visited.add(key);
-          queue.push(key);
+    // Handle cell clicks
+    grid.addEventListener('click', e => {
+      if (!e.target.classList.contains('cell')) return;
+      const cell = e.target;
+      const prev = cell.dataset.subgrid;
+
+      if (prev === selectedSubgrid) {
+        cell.dataset.subgrid = '';
+        cell.classList.remove(`subgrid-${selectedSubgrid}`);
+      } else {
+        cell.dataset.subgrid = selectedSubgrid;
+        cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
+        cell.classList.add(`subgrid-${selectedSubgrid}`);
+      }
+      validateSubgrids();
+    });
+
+    // Validate connectivity + determine winners
+    function validateSubgrids() {
+      const cells = [...document.querySelectorAll('.cell')];
+      const message = document.getElementById('message');
+      const winnerMsg = document.getElementById('winner');
+      message.textContent = '';
+      winnerMsg.textContent = '';
+
+      for (let subgridNum of ['1', '2', '3']) {
+        const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+        if (assigned.length <= 1) continue;
+
+        const coords = assigned.map(c => {
+          return [
+            rows.indexOf(c.dataset.row),
+            cols.indexOf(c.dataset.col)
+          ];
+        });
+
+        const visited = new Set();
+        const queue = [coords[0].join(',')];
+        visited.add(coords[0].join(','));
+
+        while (queue.length) {
+          const [r, c] = queue.shift().split(',').map(Number);
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr, dc]) => {
+            const nr = r + dr, nc = c + dc;
+            const key = nr + ',' + nc;
+            if (nr < 0 || nr >= 5 || nc < 0 || nc >= 5) return;
+            if (!visited.has(key) && coords.some(([rr, cc]) => rr === nr && cc === nc)) {
+              visited.add(key);
+              queue.push(key);
+            }
+          });
         }
+
+        if (visited.size !== coords.length) {
+          message.textContent = `❌ Invalid subgrid ${subgridNum}: tiles must be connected!`;
+          winnerMsg.textContent = '';
+          return;
+        }
+      }
+
+      message.textContent = '✅ All subgrids valid.';
+
+      // Compute subgrid winners
+      const subgridResults = {1: null, 2: null, 3: null};
+      for (let subgridNum of ['1', '2', '3']) {
+        const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+        if (assigned.length === 0) continue;
+
+        const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
+        const redCount = assigned.length - blueCount;
+
+        if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
+        else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
+        else subgridResults[subgridNum] = 'tie';
+      }
+
+      // Overall winner
+      const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
+      const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
+
+      if (blueWins >= 2) {
+        winnerMsg.textContent = '🏆 Blue wins overall!';
+        winnerMsg.style.color = '#2563eb';
+      } else if (redWins >= 2) {
+        winnerMsg.textContent = '🏆 Red wins overall!';
+        winnerMsg.style.color = '#dc2626';
+      } else {
+        winnerMsg.textContent = '🤝 It\'s a tie overall!';
+        winnerMsg.style.color = '#111';
+      }
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        const cells = document.querySelectorAll('.cell');
+
+        cells.forEach(cell => {
+          cell.dataset.subgrid = '';
+          cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
+        });
+
+        document.getElementById('message').textContent = '';
+        document.getElementById('winner').textContent = '';
       });
     }
 
-    if (visited.size !== coords.length) {
-      message.textContent = `❌ Invalid subgrid ${subgridNum}: tiles must be connected!`;
-      winnerMsg.textContent = '';
-      return;
-    }
-  }
+    // simple toggle between intro and game
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('intro').style.display = 'none';
+      document.getElementById('game').style.display = 'block';
+    });
 
-  message.textContent = '✅ All subgrids valid.';
-
-  // Compute subgrid winners
-  const subgridResults = {1: null, 2: null, 3: null};
-  for (let subgridNum of ['1', '2', '3']) {
-    const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
-    if (assigned.length === 0) continue;
-
-    const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
-    const redCount = assigned.length - blueCount;
-
-    if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
-    else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
-    else subgridResults[subgridNum] = 'tie';
-  }
-
-  // Overall winner
-  const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
-  const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
-
-  if (blueWins >= 2) {
-    winnerMsg.textContent = '🏆 Blue wins overall!';
-    winnerMsg.style.color = '#2563eb';
-  } else if (redWins >= 2) {
-    winnerMsg.textContent = '🏆 Red wins overall!';
-    winnerMsg.style.color = '#dc2626';
-  } else {
-    winnerMsg.textContent = '🤝 It\'s a tie overall!';
-    winnerMsg.style.color = '#111';
-  }
-  document.getElementById('resetBtn').addEventListener('click', () => {
-  const cells = document.querySelectorAll('.cell');
-
-  cells.forEach(cell => {
-    cell.dataset.subgrid = '';
-    cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-  });
-
-  document.getElementById('message').textContent = '';
-  document.getElementById('winner').textContent = '';
-});
-
-}
-</script>
+  </script>
 </body>
 </html>
