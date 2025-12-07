@@ -22,18 +22,37 @@
     margin: 0 auto;
   }
   .cell {
+    position: relative;
     width: 60px;
     height: 60px;
-    border: 1px solid #aaa;
+    box-sizing: border-box;
+    border: 1px solid #aaa;          /* thin neutral grid line */
     cursor: pointer;
-    transition: 0.2s;
+    transition: transform 0.1s;      /* press animation only */
   }
+  /* Press straight down, no diagonal */
+  .cell:active {
+    transform: translateY(2px);
+  }
+
   .blue { background-color: #3b82f6; }
   .red  { background-color: #ef4444; }
 
-  .subgrid-1 { border: 5px solid black; }
-  .subgrid-2 { border: 5px solid green; }
-  .subgrid-3 { border: 5px solid yellow; }
+  /* District contours drawn on top via ::after */
+  .cell.subgrid-1::after,
+  .cell.subgrid-2::after,
+  .cell.subgrid-3::after {
+    content: "";
+    position: absolute;
+    inset: -2px;                /* extend a bit outside to avoid being hidden */
+    border-style: solid;
+    border-width: 4px;
+    pointer-events: none;       /* don't block clicks */
+    z-index: 1;                 /* ensure it sits above neighbors */
+  }
+  .cell.subgrid-1::after { border-color: black; }
+  .cell.subgrid-2::after { border-color: green; }
+  .cell.subgrid-3::after { border-color: yellow; }
 
   #message, #winner {
     margin-top: 15px;
@@ -72,8 +91,8 @@
     <h1>Gerrymandering Interactive Grid</h1>
     <p>Blue squares are voters for <strong>Barage Obana</strong>. Red squares are voters
        who <strong>do not</strong> vote for Barage Obana.</p>
-    <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
-    <p>Try to make both sides win once, play with the subgrids !</p>
+    <p>Select a district, then click tiles to assign them. Each district must be contiguous.</p>
+    <p>Try to make both sides win once, play with the districts!</p>
 
     <button id="resetBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px;">
       Reset Game
