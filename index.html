@@ -29,7 +29,7 @@
     transition: 0.2s;
   }
   .blue { background-color: #3b82f6; }
-  .red { background-color: #ef4444; }
+  .red  { background-color: #ef4444; }
 
   .subgrid-1 { border: 5px solid black; }
   .subgrid-2 { border: 5px solid green; }
@@ -40,7 +40,7 @@
     font-weight: bold;
   }
   #message { color: red; }
-  #winner { color: #111; }
+  #winner  { color: #111; }
 </style>
 </head>
 <body>
@@ -51,10 +51,11 @@
        Barage Obana, a presidential candidate in a closely contested election.
        Your job: redraw the district map before the next vote.</p>
 
-    <p>On the screen, you’ll see a grid of voters, shown in two colors. Each
-       color represents a group of supporters. Your task is to divide the 
-       territory into a fixed number of districts. In each district, the
-       majority color wins the seat.</p>
+    <p>On the screen, you’ll see a grid of voters, shown in two colors:
+       <strong>blue</strong> and <strong>red</strong>. Each square is one voter.
+       <strong>Blue</strong> voters support Barage Obana; <strong>red</strong> voters
+       do not vote for Barage Obana. Your task is to divide the territory into a
+       fixed number of districts. In each district, the majority color wins the seat.</p>
 
     <ul>
       <li><strong>Round 1 – Fair map:</strong> draw districts so that the seats
@@ -69,10 +70,16 @@
   <!-- Game screen -->
   <div id="game" style="display:none;">
     <h1>Gerrymandering Interactive Grid</h1>
+    <p>Blue squares are voters for <strong>Barage Obana</strong>. Red squares are voters
+       who <strong>do not</strong> vote for Barage Obana.</p>
     <p>Select a subgrid, then click tiles to assign them. Each subgrid must be contiguous.</p>
     <p>Try to make both sides win once, play with the subgrids !</p>
+
     <button id="resetBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px;">
       Reset Game
+    </button>
+    <button id="showStoryBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px; margin-left:10px;">
+      Show story again
     </button>
 
     <div class="controls">
@@ -90,6 +97,11 @@
     const grid = document.getElementById('grid');
     const rows = ['A', 'B', 'C', 'D', 'E'];
     const cols = ['1', '2', '3', '4', '5'];
+    const intro = document.getElementById('intro');
+    const game = document.getElementById('game');
+    const startBtn = document.getElementById('startBtn');
+    const showStoryBtn = document.getElementById('showStoryBtn');
+    const resetBtn = document.getElementById('resetBtn');
 
     // Keep the same blue tiles unless you want different ones in 5×5
     const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
@@ -130,6 +142,17 @@
         cell.classList.add(`subgrid-${selectedSubgrid}`);
       }
       validateSubgrids();
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+      const cells = document.querySelectorAll('.cell');
+      cells.forEach(cell => {
+        cell.dataset.subgrid = '';
+        cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
+      });
+      document.getElementById('message').textContent = '';
+      document.getElementById('winner').textContent = '';
     });
 
     // Validate connectivity + determine winners
@@ -205,23 +228,19 @@
         winnerMsg.textContent = '🤝 It\'s a tie overall!';
         winnerMsg.style.color = '#111';
       }
-      document.getElementById('resetBtn').addEventListener('click', () => {
-        const cells = document.querySelectorAll('.cell');
-
-        cells.forEach(cell => {
-          cell.dataset.subgrid = '';
-          cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-        });
-
-        document.getElementById('message').textContent = '';
-        document.getElementById('winner').textContent = '';
-      });
     }
 
-    // simple toggle between intro and game
-    document.getElementById('startBtn').addEventListener('click', () => {
-      document.getElementById('intro').style.display = 'none';
-      document.getElementById('game').style.display = 'block';
+    // Toggle between intro and game
+    startBtn.addEventListener('click', () => {
+      intro.style.display = 'none';
+      game.style.display  = 'block';
+      window.scrollTo(0, 0);
+    });
+
+    showStoryBtn.addEventListener('click', () => {
+      game.style.display  = 'none';
+      intro.style.display = 'block';
+      window.scrollTo(0, 0);
     });
 
   </script>
