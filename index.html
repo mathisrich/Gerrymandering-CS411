@@ -17,7 +17,7 @@
     display: grid;
     grid-template-columns: repeat(5, 60px);
     grid-template-rows: repeat(5, 60px);
-    gap: 2px;
+    gap: 0;               /* tiles touch each other */
     justify-content: center;
     margin: 0 auto;
   }
@@ -37,22 +37,6 @@
 
   .blue { background-color: #3b82f6; }
   .red  { background-color: #ef4444; }
-
-  /* District contours drawn on top via ::after */
-  .cell.subgrid-1::after,
-  .cell.subgrid-2::after,
-  .cell.subgrid-3::after {
-    content: "";
-    position: absolute;
-    inset: -2px;                /* extend a bit outside to avoid being hidden */
-    border-style: solid;
-    border-width: 4px;
-    pointer-events: none;       /* don't block clicks */
-    z-index: 1;                 /* ensure it sits above neighbors */
-  }
-  .cell.subgrid-1::after { border-color: black; }
-  .cell.subgrid-2::after { border-color: rgb(0, 255, 34); }
-  .cell.subgrid-3::after { border-color: rgb(255, 255, 0); }
 
   #message, #winner {
     margin-top: 15px;
@@ -122,10 +106,12 @@
     const showStoryBtn = document.getElementById('showStoryBtn');
     const resetBtn = document.getElementById('resetBtn');
 
-    // Keep the same blue tiles unless you want different ones in 5×5
     const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
 
     let selectedSubgrid = '1';
+
+    // Map from cell id (e.g. "A1") to element for fast neighbor lookup
+    const cellById = {};
 
     // Build grid
     rows.forEach(r => {
@@ -138,6 +124,7 @@
         cell.dataset.col = c;
         cell.dataset.subgrid = '';
         grid.appendChild(cell);
+        cellById[id] = cell;
       });
     });
 
@@ -180,7 +167,85 @@
       });
       document.getElementById('message').textContent = '';
       document.getElementById('winner').textContent = '';
+      updateDistrictBorders();  // clear any thick borders
     });
+
+    // Update borders so that each district has a single merged outline
+    function updateDistrictBorders() {
+      const cells = [...document.querySelectorAll('.cell')];
+
+      // 1) Reset all borders to thin grey grid
+      cells.forEach(cell => {
+        cell.style.borderTop    = '1px solid #aaa';
+        cell.style.borderRight  = '1px solid #aaa';
+        cell.style.borderBottom = '1px solid #aaa';
+        cell.style.borderLeft   = '1px solid #aaa';
+      });
+
+      const colors = {
+        1: 'black',
+        2: 'rgb(0, 255, 34)',
+        3: 'rgb(255, 255, 0)'
+      };
+
+      const thick = '6px';  // thicker outline
+
+      // 2) For each district, set merged outline
+      for (let subgridNum of ['1', '2', '3']) {
+        const color = colors[subgridNum];
+        const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+        if (assigned.length === 0) continue;
+
+        for (const cell of assigned) {
+          const rowIndex = rows.indexOf(cell.dataset.row);
+          const colIndex = cols.indexOf(cell.dataset.col);
+
+          // Helper to get neighbor
+          const getCell = (ri, ci) => {
+            if (ri < 0 || ri >= rows.length || ci < 0 || ci >= cols.length) return null;
+            const id = rows[ri] + cols[ci];
+            return cellById[id] || null;
+          };
+
+          // TOP side
+          let neighbor = getCell(rowIndex - 1, colIndex);
+          if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
+            cell.style.borderTop = `${thick} solid ${color}`;
+          } else {
+            // internal edge: remove border on both sides
+            cell.style.borderTop = '1px solid #aaa';
+            neighbor.style.borderBottom = '1px solid #aaa';
+          }
+
+          // BOTTOM side
+          neighbor = getCell(rowIndex + 1, colIndex);
+          if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
+            cell.style.borderBottom = `${thick} solid ${color}`;
+          } else {
+            cell.style.borderBottom = '1px solid #aaa';
+            neighbor.style.borderTop = '1px solid #aaa';
+          }
+
+          // LEFT side
+          neighbor = getCell(rowIndex, colIndex - 1);
+          if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
+            cell.style.borderLeft = `${thick} solid ${color}`;
+          } else {
+            cell.style.borderLeft = '1px solid #aaa';
+            neighbor.style.borderRight = '1px solid #aaa';
+          }
+
+          // RIGHT side
+          neighbor = getCell(rowIndex, colIndex + 1);
+          if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
+            cell.style.borderRight = `${thick} solid ${color}`;
+          } else {
+            cell.style.borderRight = '0';
+            neighbor.style.borderLeft = '0';
+          }
+        }
+      }
+    }
 
     // Validate connectivity + determine winners
     function validateSubgrids() {
@@ -189,6 +254,9 @@
       const winnerMsg = document.getElementById('winner');
       message.textContent = '';
       winnerMsg.textContent = '';
+
+      // Update borders first so visual stays in sync
+      updateDistrictBorders();
 
       for (let subgridNum of ['1', '2', '3']) {
         const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
@@ -243,7 +311,7 @@
 
       // Overall winner
       const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
-      const redWins = Object.values(subgridResults).filter(v => v === 'red').length;
+      const redWins  = Object.values(subgridResults).filter(v => v === 'red').length;
 
       if (blueWins >= 2) {
         winnerMsg.textContent = '🏆 Blue wins overall!';
