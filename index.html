@@ -84,11 +84,18 @@
     <button id="showStoryBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px; margin-left:10px;">
       Show story again
     </button>
+    <button id="checkBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px; margin-left:10px;">
+      Check
+    </button>
 
     <div class="controls">
       <label><input type="radio" name="subgrid" value="1" checked> District 1</label>
       <label><input type="radio" name="subgrid" value="2"> District 2</label>
       <label><input type="radio" name="subgrid" value="3"> District 3</label>
+    </div>
+
+    <div id="statusBar" style="margin-top:10px; margin-bottom:5px;">
+      Number of unassigned voters: <span id="unassignedCount">25</span>
     </div>
 
     <div class="grid" id="grid"></div>
@@ -105,6 +112,8 @@
     const startBtn = document.getElementById('startBtn');
     const showStoryBtn = document.getElementById('showStoryBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const checkBtn = document.getElementById('checkBtn');
+    const unassignedCountSpan = document.getElementById('unassignedCount');
 
     const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
 
@@ -128,6 +137,9 @@
       });
     });
 
+    // Initial unassigned count
+    updateUnassignedCount();
+
     // Handle subgrid selection
     document.querySelectorAll('input[name="subgrid"]').forEach(input => {
       input.addEventListener('change', e => selectedSubgrid = e.target.value);
@@ -138,6 +150,9 @@
       if (!e.target.classList.contains('cell')) return;
       const cell = e.target;
       const prev = cell.dataset.subgrid;
+
+      const winnerMsg = document.getElementById('winner');
+      winnerMsg.textContent = ''; // clear old result when user edits
 
       // If this tile already belongs to another district, ignore the click
       if (prev && prev !== selectedSubgrid) {
@@ -155,7 +170,9 @@
         cell.classList.add(`subgrid-${selectedSubgrid}`);
       }
 
-      validateSubgrids();
+      // Update connectivity info and borders live
+      validateSubgrids(true);
+      updateUnassignedCount();
     });
 
     // Reset button
@@ -168,7 +185,18 @@
       document.getElementById('message').textContent = '';
       document.getElementById('winner').textContent = '';
       updateDistrictBorders();  // clear any thick borders
+      updateUnassignedCount();
     });
+
+    // Update unassigned tile counter
+    function updateUnassignedCount() {
+      const cells = document.querySelectorAll('.cell');
+      let unassigned = 0;
+      cells.forEach(c => {
+        if (!c.dataset.subgrid) unassigned++;
+      });
+      unassignedCountSpan.textContent = unassigned;
+    }
 
     // Update borders so that each district has a single merged outline
     function updateDistrictBorders() {
@@ -212,7 +240,7 @@
           if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
             cell.style.borderTop = `${thick} solid ${color}`;
           } else {
-            // internal edge: remove border on both sides
+            // internal edge: keep thin internal grid line
             cell.style.borderTop = '1px solid #aaa';
             neighbor.style.borderBottom = '1px solid #aaa';
           }
@@ -247,13 +275,16 @@
       }
     }
 
-    // Validate connectivity + determine winners
-    function validateSubgrids() {
+    // Validate connectivity only; return true/false
+    function validateSubgrids(showMessages = true) {
       const cells = [...document.querySelectorAll('.cell')];
       const message = document.getElementById('message');
       const winnerMsg = document.getElementById('winner');
-      message.textContent = '';
-      winnerMsg.textContent = '';
+
+      if (showMessages) {
+        message.textContent = '';
+        // winnerMsg not touched here; it's controlled by Check
+      }
 
       // Update borders first so visual stays in sync
       updateDistrictBorders();
@@ -287,15 +318,24 @@
         }
 
         if (visited.size !== coords.length) {
-          message.textContent = `❌ Invalid district ${subgridNum}: tiles must be connected!`;
-          winnerMsg.textContent = '';
-          return;
+          if (showMessages) {
+            message.textContent = `❌ Invalid district ${subgridNum}: voters must be connected!`;
+          }
+          return false;
         }
       }
 
-      message.textContent = '✅ All districts valid.';
+      if (showMessages) {
+        message.textContent = '✅ All districts valid.';
+      }
+      return true;
+    }
 
-      // Compute subgrid winners
+    // Compute and display winner (called only on Check)
+    function computeWinner() {
+      const cells = [...document.querySelectorAll('.cell')];
+      const winnerMsg = document.getElementById('winner');
+
       const subgridResults = {1: null, 2: null, 3: null};
       for (let subgridNum of ['1', '2', '3']) {
         const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
@@ -309,7 +349,6 @@
         else subgridResults[subgridNum] = 'tie';
       }
 
-      // Overall winner
       const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
       const redWins  = Object.values(subgridResults).filter(v => v === 'red').length;
 
@@ -324,6 +363,44 @@
         winnerMsg.style.color = '#111';
       }
     }
+
+    // Check button logic
+    checkBtn.addEventListener('click', () => {
+      const cells = [...document.querySelectorAll('.cell')];
+      const message = document.getElementById('message');
+      const winnerMsg = document.getElementById('winner');
+
+      winnerMsg.textContent = ''; // clear previous result
+
+      const unassigned = cells.filter(c => !c.dataset.subgrid).length;
+      if (unassigned > 0) {
+        message.textContent = `❌ You must assign all voters before checking. Number of unassigned voters: ${unassigned}.`;
+        return;
+      }
+
+      const districtCounts = {1: 0, 2: 0, 3: 0};
+      cells.forEach(c => {
+        const sg = c.dataset.subgrid;
+        if (sg === '1' || sg === '2' || sg === '3') {
+          districtCounts[sg]++;
+        }
+      });
+      const usedDistricts = Object.values(districtCounts).filter(count => count > 0).length;
+      if (usedDistricts < 3) {
+        message.textContent = '❌ You must use all 3 districts (each with at least one voter) before checking.';
+        return;
+      }
+
+      // Connectivity check
+      const ok = validateSubgrids(true);
+      if (!ok) {
+        // validateSubgrids already set an error message
+        return;
+      }
+
+      // Everything OK: compute and show winner
+      computeWinner();
+    });
 
     // Toggle between intro and game
     startBtn.addEventListener('click', () => {
