@@ -67,7 +67,10 @@
           your side win as many seats as possible.</li>
     </ul>
 
-    <button id="startBtn">Start round 1</button>
+    <div style="margin-top: 20px;">
+      <button id="round1Btn">Start Round 1</button>
+      <button id="round2Btn" style="margin-left:10px;">Start Round 2</button>
+    </div>
   </div>
 
   <!-- Game screen -->
@@ -77,6 +80,10 @@
        who <strong>do not</strong> vote for Barage Obana.</p>
     <p>Select a district, then click tiles to assign them. Each district must be contiguous.</p>
     <p>Try to make both sides win once, play with the districts!</p>
+
+    <p id="roundLabel" style="margin-top:10px; font-weight:bold;">
+      Current Round: 1 (fair map – the side with more voters should win)
+    </p>
 
     <button id="resetBtn" style="margin-bottom:15px; padding:10px 20px; font-size:16px;">
       Reset Game
@@ -109,15 +116,20 @@
     const cols = ['1', '2', '3', '4', '5'];
     const intro = document.getElementById('intro');
     const game = document.getElementById('game');
-    const startBtn = document.getElementById('startBtn');
+    const round1Btn = document.getElementById('round1Btn');
+    const round2Btn = document.getElementById('round2Btn');
     const showStoryBtn = document.getElementById('showStoryBtn');
     const resetBtn = document.getElementById('resetBtn');
     const checkBtn = document.getElementById('checkBtn');
     const unassignedCountSpan = document.getElementById('unassignedCount');
+    const roundLabel = document.getElementById('roundLabel');
 
     const blueTiles = new Set(['A1', 'A3','B3', 'B5', 'B4', 'D1', 'D2', 'D3','E3','E4','C2']);
 
     let selectedSubgrid = '1';
+    let currentRound = 1;
+    let round1Cleared = false;
+    let round2Cleared = false;
 
     // Map from cell id (e.g. "A1") to element for fast neighbor lookup
     const cellById = {};
@@ -143,6 +155,48 @@
     // Handle subgrid selection
     document.querySelectorAll('input[name="subgrid"]').forEach(input => {
       input.addEventListener('change', e => selectedSubgrid = e.target.value);
+    });
+
+    function resetBoard() {
+      const cells = document.querySelectorAll('.cell');
+      cells.forEach(cell => {
+        cell.dataset.subgrid = '';
+        cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
+      });
+      document.getElementById('message').textContent = '';
+      document.getElementById('winner').textContent = '';
+      updateDistrictBorders();
+      updateUnassignedCount();
+    }
+
+    function updateRoundLabel() {
+      if (currentRound === 1) {
+        roundLabel.textContent =
+          'Current Round: 1 (fair map – the side with more voters should win)';
+      } else {
+        roundLabel.textContent =
+          'Current Round: 2 (gerrymander – try to make Barage Obana (blue) win)';
+      }
+    }
+
+    function startRound(roundNumber) {
+      currentRound = roundNumber;
+      resetBoard();
+      updateRoundLabel();
+      intro.style.display = 'none';
+      game.style.display  = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    // Round buttons in the story screen
+    round1Btn.addEventListener('click', () => {
+      if (round1Cleared) return; // ignore if already cleared
+      startRound(1);
+    });
+
+    round2Btn.addEventListener('click', () => {
+      if (round2Cleared) return; // ignore if already cleared
+      startRound(2);
     });
 
     // Handle cell clicks
@@ -177,15 +231,7 @@
 
     // Reset button
     resetBtn.addEventListener('click', () => {
-      const cells = document.querySelectorAll('.cell');
-      cells.forEach(cell => {
-        cell.dataset.subgrid = '';
-        cell.classList.remove('subgrid-1', 'subgrid-2', 'subgrid-3');
-      });
-      document.getElementById('message').textContent = '';
-      document.getElementById('winner').textContent = '';
-      updateDistrictBorders();  // clear any thick borders
-      updateUnassignedCount();
+      resetBoard();
     });
 
     // Update unassigned tile counter
@@ -268,8 +314,8 @@
           if (!neighbor || neighbor.dataset.subgrid !== subgridNum) {
             cell.style.borderRight = `${thick} solid ${color}`;
           } else {
-            cell.style.borderRight = '0';
-            neighbor.style.borderLeft = '0';
+            cell.style.borderRight = '1px solid #aaa';
+            neighbor.style.borderLeft = '1px solid #aaa';
           }
         }
       }
@@ -279,11 +325,9 @@
     function validateSubgrids(showMessages = true) {
       const cells = [...document.querySelectorAll('.cell')];
       const message = document.getElementById('message');
-      const winnerMsg = document.getElementById('winner');
 
       if (showMessages) {
         message.textContent = '';
-        // winnerMsg not touched here; it's controlled by Check
       }
 
       // Update borders first so visual stays in sync
@@ -331,7 +375,7 @@
       return true;
     }
 
-    // Compute and display winner (called only on Check)
+    // Compute and display winner, and return 'blue' | 'red' | 'tie'
     function computeWinner() {
       const cells = [...document.querySelectorAll('.cell')];
       const winnerMsg = document.getElementById('winner');
@@ -352,19 +396,25 @@
       const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
       const redWins  = Object.values(subgridResults).filter(v => v === 'red').length;
 
-      if (blueWins >= 2) {
+      let winner = 'tie';
+      if (blueWins > redWins && blueWins >= 2) {
+        winner = 'blue';
         winnerMsg.textContent = '🏆 Blue wins overall!';
         winnerMsg.style.color = '#2563eb';
-      } else if (redWins >= 2) {
+      } else if (redWins > blueWins && redWins >= 2) {
+        winner = 'red';
         winnerMsg.textContent = '🏆 Red wins overall!';
         winnerMsg.style.color = '#dc2626';
       } else {
+        winner = 'tie';
         winnerMsg.textContent = '🤝 It\'s a tie overall!';
         winnerMsg.style.color = '#111';
       }
+
+      return winner;
     }
 
-    // Check button logic
+    // Check button logic, with round-specific behavior
     checkBtn.addEventListener('click', () => {
       const cells = [...document.querySelectorAll('.cell')];
       const message = document.getElementById('message');
@@ -398,17 +448,66 @@
         return;
       }
 
-      // Everything OK: compute and show winner
-      computeWinner();
+      if (currentRound === 1) {
+        // Round 1: they only clear if red wins overall
+        const subgridResults = {1: null, 2: null, 3: null};
+        for (let subgridNum of ['1', '2', '3']) {
+          const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
+          if (assigned.length === 0) continue;
+
+          const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
+          const redCount = assigned.length - blueCount;
+
+          if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
+          else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
+          else subgridResults[subgridNum] = 'tie';
+        }
+
+        const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
+        const redWins  = Object.values(subgridResults).filter(v => v === 'red').length;
+
+        const winner = computeWinner();
+
+        if (winner === 'red') {
+          round1Cleared = true;
+          message.textContent = '✅ Round 1 cleared: the side with more voters (red) wins.';
+
+          // Dim and disable Round 1 button in the story screen
+          round1Btn.disabled = true;
+          round1Btn.textContent = 'Round 1 (cleared)';
+          round1Btn.style.opacity = '0.5';
+          round1Btn.style.cursor = 'not-allowed';
+        } else {
+          if (winner === 'tie'){
+            message.textContent =
+              '❌ Round 1 not cleared yet. It\'s a tie!. Hint: How many people vote for Barage Obana (blue)? ' +
+              'How many vote for someone else (red)? Usually, if more people want to vote for one side, ' +
+              'that side should win, right?';
+          } else {
+            // blue wins
+            message.textContent =
+              '❌ Round 1 not cleared yet. Blue wins. Hint: How many people vote for Barage Obana (blue)? ' +
+              'How many vote for someone else (red)? Usually, if more people want to vote for one side, ' +
+              'that side should win, right?';
+          }
+        }
+      } else {
+        // Round 2: just show who wins with current districts
+        const winner = computeWinner();
+        if (winner === 'blue') {
+          round2Cleared = true;
+          message.textContent = '✅ Round 2 cleared: Barage Obana (blue) wins!';
+
+          // Dim and disable Round 2 button in the story screen
+          round2Btn.disabled = true;
+          round2Btn.textContent = 'Round 2 (cleared)';
+          round2Btn.style.opacity = '0.5';
+          round2Btn.style.cursor = 'not-allowed';
+        }
+      }
     });
 
-    // Toggle between intro and game
-    startBtn.addEventListener('click', () => {
-      intro.style.display = 'none';
-      game.style.display  = 'block';
-      window.scrollTo(0, 0);
-    });
-
+    // Toggle back to the story
     showStoryBtn.addEventListener('click', () => {
       game.style.display  = 'none';
       intro.style.display = 'block';
