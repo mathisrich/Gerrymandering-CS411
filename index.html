@@ -152,6 +152,11 @@
     // Initial unassigned count
     updateUnassignedCount();
 
+    // Lock Round 2 until Round 1 is cleared
+    round2Btn.title = 'You must finish Round 1 first';
+    round2Btn.style.opacity = '0.5';
+    round2Btn.style.cursor = 'not-allowed';
+
     // Handle subgrid selection
     document.querySelectorAll('input[name="subgrid"]').forEach(input => {
       input.addEventListener('change', e => selectedSubgrid = e.target.value);
@@ -180,8 +185,13 @@
     }
 
     function startRound(roundNumber) {
-      currentRound = roundNumber;
-      resetBoard();
+      // Only reset board when switching rounds; preserve state if re-opening same round
+      if (currentRound !== roundNumber) {
+        currentRound = roundNumber;
+        resetBoard();
+      } else {
+        currentRound = roundNumber;
+      }
       updateRoundLabel();
       intro.style.display = 'none';
       game.style.display  = 'block';
@@ -195,7 +205,8 @@
     });
 
     round2Btn.addEventListener('click', () => {
-      if (round2Cleared) return; // ignore if already cleared
+      // Block until Round 1 cleared
+      if (!round1Cleared || round2Cleared) return;
       startRound(2);
     });
 
@@ -448,26 +459,10 @@
         return;
       }
 
+      const winner = computeWinner();
+
       if (currentRound === 1) {
         // Round 1: they only clear if red wins overall
-        const subgridResults = {1: null, 2: null, 3: null};
-        for (let subgridNum of ['1', '2', '3']) {
-          const assigned = cells.filter(c => c.dataset.subgrid === subgridNum);
-          if (assigned.length === 0) continue;
-
-          const blueCount = assigned.filter(c => c.classList.contains('blue')).length;
-          const redCount = assigned.length - blueCount;
-
-          if (blueCount > redCount) subgridResults[subgridNum] = 'blue';
-          else if (redCount > blueCount) subgridResults[subgridNum] = 'red';
-          else subgridResults[subgridNum] = 'tie';
-        }
-
-        const blueWins = Object.values(subgridResults).filter(v => v === 'blue').length;
-        const redWins  = Object.values(subgridResults).filter(v => v === 'red').length;
-
-        const winner = computeWinner();
-
         if (winner === 'red') {
           round1Cleared = true;
           message.textContent = '✅ Round 1 cleared: the side with more voters (red) wins.';
@@ -477,23 +472,29 @@
           round1Btn.textContent = 'Round 1 (cleared)';
           round1Btn.style.opacity = '0.5';
           round1Btn.style.cursor = 'not-allowed';
+
+          // Unlock Round 2 visually/logically if not already cleared
+          if (!round2Cleared) {
+            round2Btn.style.opacity = '1';
+            round2Btn.style.cursor = 'pointer';
+            round2Btn.title = '';
+          }
         } else {
-          if (winner === 'tie'){
+          if (winner === 'tie') {
             message.textContent =
-              '❌ Round 1 not cleared yet. It\'s a tie!. Hint: How many people vote for Barage Obana (blue)? ' +
+              '❌ Hint: How many people vote for Barage Obana (blue)?' +
               'How many vote for someone else (red)? Usually, if more people want to vote for one side, ' +
               'that side should win, right?';
           } else {
             // blue wins
             message.textContent =
-              '❌ Round 1 not cleared yet. Blue wins. Hint: How many people vote for Barage Obana (blue)? ' +
+              '❌ Hint: How many people vote for Barage Obana (blue)?' +
               'How many vote for someone else (red)? Usually, if more people want to vote for one side, ' +
               'that side should win, right?';
           }
         }
       } else {
         // Round 2: just show who wins with current districts
-        const winner = computeWinner();
         if (winner === 'blue') {
           round2Cleared = true;
           message.textContent = '✅ Round 2 cleared: Barage Obana (blue) wins!';
